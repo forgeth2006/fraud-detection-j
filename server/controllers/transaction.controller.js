@@ -26,11 +26,13 @@ const createTransaction = async (req, res) => {
       });
     }
 
+    const { analyzeFraud } = require('../services/fraudEngine');
+
     // Check if night time (12am to 5am)
     const hour = new Date().getHours();
     const isNightTime = hour >= 0 && hour <= 5;
 
-    // Create transaction
+    // Create transaction first
     const transaction = await Transaction.create({
       transactionId,
       userId,
@@ -42,6 +44,16 @@ const createTransaction = async (req, res) => {
       ipAddress,
       isNightTime,
     });
+
+    // Run fraud analysis
+    const fraudResult = await analyzeFraud(transaction);
+
+    // Update transaction with fraud results
+    transaction.riskScore = fraudResult.riskScore;
+    transaction.riskLevel = fraudResult.riskLevel;
+    transaction.isFraud = fraudResult.isFraud;
+    transaction.fraudReasons = fraudResult.fraudReasons;
+    await transaction.save();
 
     // Save to audit log
     await AuditLog.create({
