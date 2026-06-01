@@ -1,5 +1,6 @@
 const Transaction = require('../models/Transaction');
 const AuditLog = require('../models/AuditLog');
+const { explainFraud } = require('../services/claudeAI');
 
 // @route   POST /api/transactions
 // @desc    Create a new transaction
@@ -53,6 +54,16 @@ const createTransaction = async (req, res) => {
     transaction.riskLevel = fraudResult.riskLevel;
     transaction.isFraud = fraudResult.isFraud;
     transaction.fraudReasons = fraudResult.fraudReasons;
+
+    // If high risk — get AI explanation
+    if (fraudResult.riskLevel === 'high') {
+      const aiExplanation = await explainFraud(
+        transaction,
+        fraudResult.fraudReasons
+      );
+      transaction.aiExplanation = aiExplanation;
+    }
+
     await transaction.save();
 
     // Save to audit log
