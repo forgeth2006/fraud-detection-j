@@ -1,0 +1,48 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Fraud Alert Test</title>
+  <script src="https://cdn.socket.io/4.7.2/socket.io.min.js"></script>
+  <style>
+    body { font-family: Arial; padding: 20px; background: #0a0a0a; color: white; }
+    h1 { color: #ff4444; }
+    .alert { background: #1a1a1a; border-left: 4px solid #ff4444; padding: 15px; margin: 10px 0; border-radius: 4px; }
+    .medium { border-left-color: #ffaa00; }
+    .connected { color: #00ff88; }
+  </style>
+</head>
+<body>
+  <h1>🚨 Fraud Alert Dashboard</h1>
+  <p id="status">Connecting...</p>
+  <div id="alerts"></div>
+
+  <script>
+    const socket = io('http://localhost:5000');
+
+    socket.on('connect', () => {
+      document.getElementById('status').innerHTML = 
+        '<span class="connected">✅ Connected to server — watching for fraud alerts...</span>';
+    });
+
+    socket.on('fraudAlert', (data) => {
+      const alertsDiv = document.getElementById('alerts');
+      const alertClass = data.severity === 'HIGH' ? 'alert' : 'alert medium';
+      
+      const alertHTML = `
+        <div class="${alertClass}">
+          <h3>${data.severity === 'HIGH' ? '🚨' : '⚠️'} ${data.type}</h3>
+          <p><strong>Transaction:</strong> ${data.transactionId}</p>
+          <p><strong>Amount:</strong> ₹${data.amount?.toLocaleString('en-IN')}</p>
+          <p><strong>Merchant:</strong> ${data.merchantName}</p>
+          <p><strong>Risk Score:</strong> ${data.riskScore}/100</p>
+          <p><strong>Reasons:</strong> ${data.fraudReasons?.join(', ')}</p>
+          ${data.aiExplanation ? `<p><strong>AI Analysis:</strong> ${data.aiExplanation}</p>` : ''}
+          <p><small>${new Date(data.timestamp).toLocaleString()}</small></p>
+        </div>
+      `;
+      
+      alertsDiv.innerHTML = alertHTML + alertsDiv.innerHTML;
+    });
+  </script>
+</body>
+</html>

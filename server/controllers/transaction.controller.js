@@ -55,17 +55,50 @@ const createTransaction = async (req, res) => {
     transaction.isFraud = fraudResult.isFraud;
     transaction.fraudReasons = fraudResult.fraudReasons;
 
-    // If high risk — get AI explanation
+    // If high risk — get AI explanation and fire alert
     if (fraudResult.riskLevel === 'high') {
       const aiExplanation = await explainFraud(
         transaction,
         fraudResult.fraudReasons
       );
       transaction.aiExplanation = aiExplanation;
+
+      // Fire real time WebSocket alert
+      const io = req.app.get('io');
+      io.emit('fraudAlert', {
+        type: 'FRAUD_ALERT',
+        severity: 'HIGH',
+        transactionId: transaction.transactionId,
+        amount: transaction.amount,
+        merchantName: transaction.merchantName,
+        location: transaction.location,
+        riskScore: fraudResult.riskScore,
+        fraudReasons: fraudResult.fraudReasons,
+        aiExplanation: transaction.aiExplanation,
+        timestamp: new Date(),
+      });
+
+      console.log(`🚨 FRAUD ALERT fired for ${transaction.transactionId}`);
     }
 
     await transaction.save();
 
+  // Medium risk alert
+  if (fraudResult.riskLevel === 'medium') {
+    const io = req.app.get('io');
+    io.emit('fraudAlert', {
+      type: 'REVIEW_ALERT',
+      severity: 'MEDIUM',
+      transactionId: transaction.transactionId,
+      amount: transaction.amount,
+      merchantName: transaction.merchantName,
+      riskScore: fraudResult.riskScore,
+      fraudReasons: fraudResult.fraudReasons,
+      timestamp: new Date(),
+    });
+
+    console.log(`⚠️ REVIEW ALERT fired for ${transaction.transactionId}`);
+  }  
     // Save to audit log
     await AuditLog.create({
       action: 'created',
