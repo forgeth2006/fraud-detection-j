@@ -69,11 +69,25 @@ const Dashboard = () => {
 
   return (
     <Layout>
-      {/* Header */}
-      <div className="mb-8">
-        <h1 className="text-2xl font-bold text-white">Dashboard</h1>
-        <p className="text-gray-400 mt-1">Real-time fraud monitoring overview</p>
-      </div>
+        {/* Header */}
+        <div className="flex items-center justify-between mb-8">
+            <div>
+                <h1 className="text-2xl font-bold text-white">Dashboard</h1>
+                <p className="text-gray-400 mt-1">Real-time fraud monitoring overview</p>
+            </div>
+            <div className="flex items-center gap-3">
+                <div className="flex items-center gap-2 bg-gray-900 border border-gray-800 rounded-xl px-4 py-2">
+                    <div className="w-2 h-2 bg-green-400 rounded-full animate-pulse" />
+                    <span className="text-green-400 text-sm">Live</span>
+                </div>
+                <button
+                    onClick={() => window.open('http://localhost:5000/health', '_blank')}
+                    className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-xl text-sm font-medium transition"
+                >
+                    ⚡ System Health
+                </button>
+            </div>
+        </div>
 
       {/* Stats Grid */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
