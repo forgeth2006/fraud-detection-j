@@ -1,10 +1,12 @@
 import { useState, useEffect } from 'react';
 import Layout from '../components/Layout';
+import Spinner from '../components/Spinner';
+import ErrorMessage from '../components/ErrorMessage';
 import api from '../utils/api';
 import {
   PieChart, Pie, Cell, Tooltip, Legend,
   BarChart, Bar, XAxis, YAxis, CartesianGrid,
-  ResponsiveContainer, LineChart, Line
+  ResponsiveContainer,
 } from 'recharts';
 
 const StatCard = ({ title, value, icon, color }) => (
@@ -20,27 +22,37 @@ const StatCard = ({ title, value, icon, color }) => (
 const Dashboard = () => {
   const [stats, setStats] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+
+  const fetchStats = async () => {
+    try {
+      setError(null);
+      setLoading(true);
+      const res = await api.get('/transactions/stats');
+      setStats(res.data.stats);
+    } catch (err) {
+      setError('Failed to load dashboard data. Is your backend running?');
+    } finally {
+      setLoading(false);
+    }
+  };
 
   useEffect(() => {
-    const fetchStats = async () => {
-      try {
-        const res = await api.get('/transactions/stats');
-        setStats(res.data.stats);
-      } catch (err) {
-        console.error('Failed to fetch stats:', err);
-      } finally {
-        setLoading(false);
-      }
-    };
     fetchStats();
   }, []);
 
   if (loading) {
     return (
       <Layout>
-        <div className="flex items-center justify-center h-64">
-          <p className="text-gray-400">Loading dashboard...</p>
-        </div>
+        <Spinner text="Loading dashboard..." />
+      </Layout>
+    );
+  }
+
+  if (error) {
+    return (
+      <Layout>
+        <ErrorMessage message={error} onRetry={fetchStats} />
       </Layout>
     );
   }
@@ -53,7 +65,7 @@ const Dashboard = () => {
   ];
 
   const riskData = [
-    { name: 'Low Risk', value: stats?.total - stats?.highRisk - stats?.mediumRisk || 0, color: '#22C55E' },
+    { name: 'Low Risk', value: (stats?.total - stats?.highRisk - stats?.mediumRisk) || 0, color: '#22C55E' },
     { name: 'Medium Risk', value: stats?.mediumRisk || 0, color: '#EAB308' },
     { name: 'High Risk', value: stats?.highRisk || 0, color: '#EF4444' },
   ];
@@ -69,25 +81,25 @@ const Dashboard = () => {
 
   return (
     <Layout>
-        {/* Header */}
-        <div className="flex items-center justify-between mb-8">
-            <div>
-                <h1 className="text-2xl font-bold text-white">Dashboard</h1>
-                <p className="text-gray-400 mt-1">Real-time fraud monitoring overview</p>
-            </div>
-            <div className="flex items-center gap-3">
-                <div className="flex items-center gap-2 bg-gray-900 border border-gray-800 rounded-xl px-4 py-2">
-                    <div className="w-2 h-2 bg-green-400 rounded-full animate-pulse" />
-                    <span className="text-green-400 text-sm">Live</span>
-                </div>
-                <button
-                    onClick={() => window.open('http://localhost:5000/health', '_blank')}
-                    className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-xl text-sm font-medium transition"
-                >
-                    ⚡ System Health
-                </button>
-            </div>
+      {/* Header */}
+      <div className="flex items-center justify-between mb-8">
+        <div>
+          <h1 className="text-2xl font-bold text-white">Dashboard</h1>
+          <p className="text-gray-400 mt-1">Real-time fraud monitoring overview</p>
         </div>
+        <div className="flex items-center gap-3">
+          <div className="flex items-center gap-2 bg-gray-900 border border-gray-800 rounded-xl px-4 py-2">
+            <div className="w-2 h-2 bg-green-400 rounded-full animate-pulse" />
+            <span className="text-green-400 text-sm">Live</span>
+          </div>
+          <button
+            onClick={() => window.open('http://localhost:5000/health', '_blank')}
+            className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-xl text-sm font-medium transition"
+          >
+            ⚡ System Health
+          </button>
+        </div>
+      </div>
 
       {/* Stats Grid */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
@@ -165,7 +177,7 @@ const Dashboard = () => {
                   backgroundColor: '#1F2937',
                   border: '1px solid #374151',
                   borderRadius: '8px',
-                  color: '#fff'
+                  color: '#fff',
                 }}
               />
               <Legend
@@ -200,7 +212,7 @@ const Dashboard = () => {
                   backgroundColor: '#1F2937',
                   border: '1px solid #374151',
                   borderRadius: '8px',
-                  color: '#fff'
+                  color: '#fff',
                 }}
               />
               <Legend
@@ -233,7 +245,7 @@ const Dashboard = () => {
                 backgroundColor: '#1F2937',
                 border: '1px solid #374151',
                 borderRadius: '8px',
-                color: '#fff'
+                color: '#fff',
               }}
             />
             <Bar dataKey="value" fill="#3B82F6" radius={[4, 4, 0, 0]} />

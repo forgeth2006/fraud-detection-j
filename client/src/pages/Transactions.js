@@ -1,5 +1,9 @@
+
 import { useState, useEffect } from 'react';
 import Layout from '../components/Layout';
+import Spinner from '../components/Spinner';
+import ErrorMessage from '../components/ErrorMessage';
+import Toast from '../components/Toast';
 import api from '../utils/api';
 
 const RiskBadge = ({ level }) => {
@@ -32,6 +36,7 @@ const StatusBadge = ({ status }) => {
 const Transactions = () => {
   const [transactions, setTransactions] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
   const [filters, setFilters] = useState({
     status: '',
     riskLevel: '',
@@ -41,10 +46,12 @@ const Transactions = () => {
   const [total, setTotal] = useState(0);
   const [pages, setPages] = useState(0);
   const [selected, setSelected] = useState(null);
+  const [toast, setToast] = useState(null);
 
   const fetchTransactions = async () => {
     setLoading(true);
     try {
+      setError(null);
       const params = new URLSearchParams();
       if (filters.status) params.append('status', filters.status);
       if (filters.riskLevel) params.append('riskLevel', filters.riskLevel);
@@ -56,7 +63,7 @@ const Transactions = () => {
       setTotal(res.data.total);
       setPages(res.data.pages);
     } catch (err) {
-      console.error('Failed to fetch:', err);
+      setError('Failed to load transactions. Is your backend running?');
     } finally {
       setLoading(false);
     }
@@ -74,26 +81,43 @@ const Transactions = () => {
       });
       fetchTransactions();
       setSelected(null);
+      setToast({
+        message: `Transaction ${status} successfully!`,
+        type:
+          status === 'approved'
+            ? 'success'
+            : status === 'blocked'
+            ? 'error'
+            : 'warning',
+      });
     } catch (err) {
-      console.error('Failed to update:', err);
+      setToast({ message: 'Failed to update transaction', type: 'error' });
     }
   };
+
+  if (error) {
+    return (
+      <Layout>
+        <ErrorMessage message={error} onRetry={fetchTransactions} />
+      </Layout>
+    );
+  }
 
   return (
     <Layout>
       {/* Header */}
       <div className="mb-6">
         <h1 className="text-2xl font-bold text-white">Transactions</h1>
-        <p className="text-gray-400 mt-1">
-          {total} total transactions
-        </p>
+        <p className="text-gray-400 mt-1">{total} total transactions</p>
       </div>
 
       {/* Filters */}
       <div className="bg-gray-900 border border-gray-800 rounded-2xl p-4 mb-6 flex gap-4 flex-wrap">
         <select
           value={filters.status}
-          onChange={(e) => setFilters({ ...filters, status: e.target.value, page: 1 })}
+          onChange={(e) =>
+            setFilters({ ...filters, status: e.target.value, page: 1 })
+          }
           className="bg-gray-800 border border-gray-700 text-white rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-blue-500"
         >
           <option value="">All Status</option>
@@ -105,7 +129,9 @@ const Transactions = () => {
 
         <select
           value={filters.riskLevel}
-          onChange={(e) => setFilters({ ...filters, riskLevel: e.target.value, page: 1 })}
+          onChange={(e) =>
+            setFilters({ ...filters, riskLevel: e.target.value, page: 1 })
+          }
           className="bg-gray-800 border border-gray-700 text-white rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-blue-500"
         >
           <option value="">All Risk Levels</option>
@@ -115,7 +141,9 @@ const Transactions = () => {
         </select>
 
         <button
-          onClick={() => setFilters({ status: '', riskLevel: '', page: 1, limit: 10 })}
+          onClick={() =>
+            setFilters({ status: '', riskLevel: '', page: 1, limit: 10 })
+          }
           className="bg-gray-800 border border-gray-700 text-gray-400 hover:text-white rounded-lg px-4 py-2 text-sm transition"
         >
           Clear Filters
@@ -128,25 +156,42 @@ const Transactions = () => {
           <table className="w-full">
             <thead>
               <tr className="border-b border-gray-800">
-                <th className="text-left text-gray-400 text-xs font-medium px-6 py-4">TRANSACTION ID</th>
-                <th className="text-left text-gray-400 text-xs font-medium px-6 py-4">MERCHANT</th>
-                <th className="text-left text-gray-400 text-xs font-medium px-6 py-4">AMOUNT</th>
-                <th className="text-left text-gray-400 text-xs font-medium px-6 py-4">RISK</th>
-                <th className="text-left text-gray-400 text-xs font-medium px-6 py-4">STATUS</th>
-                <th className="text-left text-gray-400 text-xs font-medium px-6 py-4">DATE</th>
-                <th className="text-left text-gray-400 text-xs font-medium px-6 py-4">ACTION</th>
+                <th className="text-left text-gray-400 text-xs font-medium px-6 py-4">
+                  TRANSACTION ID
+                </th>
+                <th className="text-left text-gray-400 text-xs font-medium px-6 py-4">
+                  MERCHANT
+                </th>
+                <th className="text-left text-gray-400 text-xs font-medium px-6 py-4">
+                  AMOUNT
+                </th>
+                <th className="text-left text-gray-400 text-xs font-medium px-6 py-4">
+                  RISK
+                </th>
+                <th className="text-left text-gray-400 text-xs font-medium px-6 py-4">
+                  STATUS
+                </th>
+                <th className="text-left text-gray-400 text-xs font-medium px-6 py-4">
+                  DATE
+                </th>
+                <th className="text-left text-gray-400 text-xs font-medium px-6 py-4">
+                  ACTION
+                </th>
               </tr>
             </thead>
             <tbody>
               {loading ? (
                 <tr>
-                  <td colSpan="7" className="text-center text-gray-400 py-12">
-                    Loading transactions...
+                  <td colSpan="7">
+                    <Spinner text="Loading transactions..." />
                   </td>
                 </tr>
               ) : transactions.length === 0 ? (
                 <tr>
-                  <td colSpan="7" className="text-center text-gray-400 py-12">
+                  <td
+                    colSpan="7"
+                    className="text-center text-gray-400 py-12"
+                  >
                     No transactions found
                   </td>
                 </tr>
@@ -163,8 +208,12 @@ const Transactions = () => {
                     </td>
                     <td className="px-6 py-4">
                       <div>
-                        <p className="text-white text-sm">{txn.merchantName}</p>
-                        <p className="text-gray-500 text-xs capitalize">{txn.merchantCategory}</p>
+                        <p className="text-white text-sm">
+                          {txn.merchantName}
+                        </p>
+                        <p className="text-gray-500 text-xs capitalize">
+                          {txn.merchantCategory}
+                        </p>
                       </div>
                     </td>
                     <td className="px-6 py-4">
@@ -175,7 +224,9 @@ const Transactions = () => {
                     <td className="px-6 py-4">
                       <div className="flex items-center gap-2">
                         <RiskBadge level={txn.riskLevel} />
-                        <span className="text-gray-500 text-xs">{txn.riskScore}/100</span>
+                        <span className="text-gray-500 text-xs">
+                          {txn.riskScore}/100
+                        </span>
                       </div>
                     </td>
                     <td className="px-6 py-4">
@@ -209,14 +260,18 @@ const Transactions = () => {
         </p>
         <div className="flex gap-2">
           <button
-            onClick={() => setFilters({ ...filters, page: filters.page - 1 })}
+            onClick={() =>
+              setFilters({ ...filters, page: filters.page - 1 })
+            }
             disabled={filters.page === 1}
             className="bg-gray-900 border border-gray-800 text-gray-400 disabled:opacity-50 px-4 py-2 rounded-lg text-sm hover:text-white transition"
           >
             ← Previous
           </button>
           <button
-            onClick={() => setFilters({ ...filters, page: filters.page + 1 })}
+            onClick={() =>
+              setFilters({ ...filters, page: filters.page + 1 })
+            }
             disabled={filters.page === pages}
             className="bg-gray-900 border border-gray-800 text-gray-400 disabled:opacity-50 px-4 py-2 rounded-lg text-sm hover:text-white transition"
           >
@@ -229,12 +284,16 @@ const Transactions = () => {
       {selected && (
         <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-50 p-4">
           <div className="bg-gray-900 border border-gray-800 rounded-2xl p-6 w-full max-w-2xl max-h-screen overflow-y-auto">
-            
+
             {/* Modal Header */}
             <div className="flex items-center justify-between mb-6">
               <div>
-                <h2 className="text-white font-bold text-lg">Transaction Details</h2>
-                <p className="text-blue-400 font-mono text-sm">{selected.transactionId}</p>
+                <h2 className="text-white font-bold text-lg">
+                  Transaction Details
+                </h2>
+                <p className="text-blue-400 font-mono text-sm">
+                  {selected.transactionId}
+                </p>
               </div>
               <button
                 onClick={() => setSelected(null)}
@@ -254,10 +313,15 @@ const Transactions = () => {
               </div>
               <div className="bg-gray-800 rounded-xl p-4">
                 <p className="text-gray-400 text-xs mb-1">Risk Score</p>
-                <p className={`font-bold text-lg ${
-                  selected.riskLevel === 'high' ? 'text-red-400' :
-                  selected.riskLevel === 'medium' ? 'text-yellow-400' : 'text-green-400'
-                }`}>
+                <p
+                  className={`font-bold text-lg ${
+                    selected.riskLevel === 'high'
+                      ? 'text-red-400'
+                      : selected.riskLevel === 'medium'
+                      ? 'text-yellow-400'
+                      : 'text-green-400'
+                  }`}
+                >
                   {selected.riskScore}/100
                 </p>
               </div>
@@ -274,7 +338,9 @@ const Transactions = () => {
               </div>
               <div className="bg-gray-800 rounded-xl p-4">
                 <p className="text-gray-400 text-xs mb-1">Device</p>
-                <p className="text-white text-sm capitalize">{selected.deviceType}</p>
+                <p className="text-white text-sm capitalize">
+                  {selected.deviceType}
+                </p>
               </div>
               <div className="bg-gray-800 rounded-xl p-4">
                 <p className="text-gray-400 text-xs mb-1">Night Time</p>
@@ -287,10 +353,15 @@ const Transactions = () => {
             {/* Fraud Reasons */}
             {selected.fraudReasons?.length > 0 && (
               <div className="bg-red-500/10 border border-red-500/30 rounded-xl p-4 mb-4">
-                <p className="text-red-400 font-medium text-sm mb-2">🚨 Fraud Indicators</p>
+                <p className="text-red-400 font-medium text-sm mb-2">
+                  🚨 Fraud Indicators
+                </p>
                 <ul className="space-y-1">
                   {selected.fraudReasons.map((reason, i) => (
-                    <li key={i} className="text-gray-300 text-sm flex items-start gap-2">
+                    <li
+                      key={i}
+                      className="text-gray-300 text-sm flex items-start gap-2"
+                    >
                       <span className="text-red-400 mt-0.5">•</span>
                       {reason}
                     </li>
@@ -302,7 +373,9 @@ const Transactions = () => {
             {/* AI Explanation */}
             {selected.aiExplanation && (
               <div className="bg-blue-500/10 border border-blue-500/30 rounded-xl p-4 mb-6">
-                <p className="text-blue-400 font-medium text-sm mb-2">🤖 AI Analysis</p>
+                <p className="text-blue-400 font-medium text-sm mb-2">
+                  🤖 AI Analysis
+                </p>
                 <p className="text-gray-300 text-sm leading-relaxed">
                   {selected.aiExplanation}
                 </p>
@@ -313,19 +386,25 @@ const Transactions = () => {
             {selected.status === 'pending' && (
               <div className="flex gap-3">
                 <button
-                  onClick={() => handleStatusUpdate(selected.transactionId, 'approved')}
+                  onClick={() =>
+                    handleStatusUpdate(selected.transactionId, 'approved')
+                  }
                   className="flex-1 bg-green-600 hover:bg-green-700 text-white font-medium py-3 rounded-xl transition"
                 >
                   ✅ Approve
                 </button>
                 <button
-                  onClick={() => handleStatusUpdate(selected.transactionId, 'blocked')}
+                  onClick={() =>
+                    handleStatusUpdate(selected.transactionId, 'blocked')
+                  }
                   className="flex-1 bg-red-600 hover:bg-red-700 text-white font-medium py-3 rounded-xl transition"
                 >
                   🚫 Block
                 </button>
                 <button
-                  onClick={() => handleStatusUpdate(selected.transactionId, 'reviewing')}
+                  onClick={() =>
+                    handleStatusUpdate(selected.transactionId, 'reviewing')
+                  }
                   className="flex-1 bg-blue-600 hover:bg-blue-700 text-white font-medium py-3 rounded-xl transition"
                 >
                   🔍 Review
@@ -336,12 +415,24 @@ const Transactions = () => {
             {selected.status !== 'pending' && (
               <div className="bg-gray-800 rounded-xl p-4 text-center">
                 <p className="text-gray-400 text-sm">
-                  This transaction has been <span className="text-white font-medium">{selected.status}</span>
+                  This transaction has been{' '}
+                  <span className="text-white font-medium">
+                    {selected.status}
+                  </span>
                 </p>
               </div>
             )}
           </div>
         </div>
+      )}
+
+      {/* Toast Notification */}
+      {toast && (
+        <Toast
+          message={toast.message}
+          type={toast.type}
+          onClose={() => setToast(null)}
+        />
       )}
     </Layout>
   );
