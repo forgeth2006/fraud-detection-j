@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from 'react';
 import Layout from '../components/Layout';
 import Spinner from '../components/Spinner';
@@ -40,9 +39,11 @@ const Transactions = () => {
   const [filters, setFilters] = useState({
     status: '',
     riskLevel: '',
+    search: '',
     page: 1,
     limit: 10,
   });
+  const [searchInput, setSearchInput] = useState('');
   const [total, setTotal] = useState(0);
   const [pages, setPages] = useState(0);
   const [selected, setSelected] = useState(null);
@@ -55,6 +56,7 @@ const Transactions = () => {
       const params = new URLSearchParams();
       if (filters.status) params.append('status', filters.status);
       if (filters.riskLevel) params.append('riskLevel', filters.riskLevel);
+      if (filters.search) params.append('search', filters.search);
       params.append('page', filters.page);
       params.append('limit', filters.limit);
 
@@ -113,6 +115,32 @@ const Transactions = () => {
 
       {/* Filters */}
       <div className="bg-gray-900 border border-gray-800 rounded-2xl p-4 mb-6 flex gap-4 flex-wrap">
+
+        {/* Search Bar */}
+        <div className="flex gap-2 w-full">
+          <input
+            type="text"
+            value={searchInput}
+            onChange={(e) => setSearchInput(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter') {
+                setFilters({ ...filters, search: searchInput, page: 1 });
+              }
+            }}
+            placeholder="Search by Transaction ID, Merchant or User..."
+            className="flex-1 bg-gray-800 border border-gray-700 text-white rounded-lg px-4 py-2 text-sm focus:outline-none focus:border-blue-500 placeholder-gray-500"
+          />
+          <button
+            onClick={() =>
+              setFilters({ ...filters, search: searchInput, page: 1 })
+            }
+            className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg text-sm transition"
+          >
+            🔍 Search
+          </button>
+        </div>
+
+        {/* Dropdowns */}
         <select
           value={filters.status}
           onChange={(e) =>
@@ -141,9 +169,16 @@ const Transactions = () => {
         </select>
 
         <button
-          onClick={() =>
-            setFilters({ status: '', riskLevel: '', page: 1, limit: 10 })
-          }
+          onClick={() => {
+            setFilters({
+              status: '',
+              riskLevel: '',
+              search: '',
+              page: 1,
+              limit: 10,
+            });
+            setSearchInput('');
+          }}
           className="bg-gray-800 border border-gray-700 text-gray-400 hover:text-white rounded-lg px-4 py-2 text-sm transition"
         >
           Clear Filters
@@ -188,10 +223,7 @@ const Transactions = () => {
                 </tr>
               ) : transactions.length === 0 ? (
                 <tr>
-                  <td
-                    colSpan="7"
-                    className="text-center text-gray-400 py-12"
-                  >
+                  <td colSpan="7" className="text-center text-gray-400 py-12">
                     No transactions found
                   </td>
                 </tr>
@@ -208,9 +240,7 @@ const Transactions = () => {
                     </td>
                     <td className="px-6 py-4">
                       <div>
-                        <p className="text-white text-sm">
-                          {txn.merchantName}
-                        </p>
+                        <p className="text-white text-sm">{txn.merchantName}</p>
                         <p className="text-gray-500 text-xs capitalize">
                           {txn.merchantCategory}
                         </p>

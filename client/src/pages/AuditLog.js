@@ -30,9 +30,11 @@ const AuditLog = () => {
   const [stats, setStats] = useState(null);
   const [filters, setFilters] = useState({
     action: '',
+    search: '',
     page: 1,
     limit: 15,
   });
+  const [searchInput, setSearchInput] = useState('');
   const [total, setTotal] = useState(0);
   const [pages, setPages] = useState(0);
 
@@ -41,6 +43,7 @@ const AuditLog = () => {
     try {
       const params = new URLSearchParams();
       if (filters.action) params.append('action', filters.action);
+      if (filters.search) params.append('transactionId', filters.search);
       params.append('page', filters.page);
       params.append('limit', filters.limit);
 
@@ -112,10 +115,37 @@ const AuditLog = () => {
       </div>
 
       {/* Filters */}
-      <div className="bg-gray-900 border border-gray-800 rounded-2xl p-4 mb-6 flex gap-4">
+      <div className="bg-gray-900 border border-gray-800 rounded-2xl p-4 mb-6 flex gap-4 flex-wrap">
+
+        {/* Search */}
+        <div className="flex gap-2 w-full">
+          <input
+            type="text"
+            value={searchInput}
+            onChange={(e) => setSearchInput(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter') {
+                setFilters({ ...filters, search: searchInput, page: 1 });
+              }
+            }}
+            placeholder="Search by Transaction ID..."
+            className="flex-1 bg-gray-800 border border-gray-700 text-white rounded-lg px-4 py-2 text-sm focus:outline-none focus:border-blue-500 placeholder-gray-500"
+          />
+          <button
+            onClick={() =>
+              setFilters({ ...filters, search: searchInput, page: 1 })
+            }
+            className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg text-sm transition"
+          >
+            🔍 Search
+          </button>
+        </div>
+
         <select
           value={filters.action}
-          onChange={(e) => setFilters({ ...filters, action: e.target.value, page: 1 })}
+          onChange={(e) =>
+            setFilters({ ...filters, action: e.target.value, page: 1 })
+          }
           className="bg-gray-800 border border-gray-700 text-white rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-blue-500"
         >
           <option value="">All Actions</option>
@@ -127,7 +157,10 @@ const AuditLog = () => {
         </select>
 
         <button
-          onClick={() => setFilters({ action: '', page: 1, limit: 15 })}
+          onClick={() => {
+            setFilters({ action: '', search: '', page: 1, limit: 15 });
+            setSearchInput('');
+          }}
           className="bg-gray-800 border border-gray-700 text-gray-400 hover:text-white rounded-lg px-4 py-2 text-sm transition"
         >
           Clear
@@ -229,14 +262,18 @@ const AuditLog = () => {
         </p>
         <div className="flex gap-2">
           <button
-            onClick={() => setFilters({ ...filters, page: filters.page - 1 })}
+            onClick={() =>
+              setFilters({ ...filters, page: filters.page - 1 })
+            }
             disabled={filters.page === 1}
             className="bg-gray-900 border border-gray-800 text-gray-400 disabled:opacity-50 px-4 py-2 rounded-lg text-sm hover:text-white transition"
           >
             ← Previous
           </button>
           <button
-            onClick={() => setFilters({ ...filters, page: filters.page + 1 })}
+            onClick={() =>
+              setFilters({ ...filters, page: filters.page + 1 })
+            }
             disabled={filters.page === pages}
             className="bg-gray-900 border border-gray-800 text-gray-400 disabled:opacity-50 px-4 py-2 rounded-lg text-sm hover:text-white transition"
           >

@@ -1,5 +1,6 @@
 const Transaction = require('../models/Transaction');
 const AuditLog = require('../models/AuditLog');
+const { analyzeFraud } = require('../services/fraudEngine');
 const { explainFraud } = require('../services/claudeAI');
 
 // @route   POST /api/transactions
@@ -26,8 +27,6 @@ const createTransaction = async (req, res) => {
         message: 'Transaction ID already exists',
       });
     }
-
-    const { analyzeFraud } = require('../services/fraudEngine');
 
     // Check if night time (12am to 5am)
     const hour = new Date().getHours();
@@ -81,24 +80,25 @@ const createTransaction = async (req, res) => {
       console.log(`🚨 FRAUD ALERT fired for ${transaction.transactionId}`);
     }
 
+    // Medium risk alert
+    if (fraudResult.riskLevel === 'medium') {
+      const io = req.app.get('io');
+      io.emit('fraudAlert', {
+        type: 'REVIEW_ALERT',
+        severity: 'MEDIUM',
+        transactionId: transaction.transactionId,
+        amount: transaction.amount,
+        merchantName: transaction.merchantName,
+        riskScore: fraudResult.riskScore,
+        fraudReasons: fraudResult.fraudReasons,
+        timestamp: new Date(),
+      });
+
+      console.log(`⚠️ REVIEW ALERT fired for ${transaction.transactionId}`);
+    }
+
     await transaction.save();
 
-  // Medium risk alert
-  if (fraudResult.riskLevel === 'medium') {
-    const io = req.app.get('io');
-    io.emit('fraudAlert', {
-      type: 'REVIEW_ALERT',
-      severity: 'MEDIUM',
-      transactionId: transaction.transactionId,
-      amount: transaction.amount,
-      merchantName: transaction.merchantName,
-      riskScore: fraudResult.riskScore,
-      fraudReasons: fraudResult.fraudReasons,
-      timestamp: new Date(),
-    });
-
-    console.log(`⚠️ REVIEW ALERT fired for ${transaction.transactionId}`);
-  }  
     // Save to audit log
     await AuditLog.create({
       action: 'created',
@@ -133,6 +133,7 @@ const getAllTransactions = async (req, res) => {
       merchantCategory,
       startDate,
       endDate,
+      search,
       page = 1,
       limit = 10,
     } = req.query;
@@ -148,12 +149,21 @@ const getAllTransactions = async (req, res) => {
       if (endDate) filter.timestamp.$lte = new Date(endDate);
     }
 
+    // Search by transactionId or merchantName
+    if (search) {
+      filter.$or = [
+        { transactionId: { $regex: search, $options: 'i' } },
+        { merchantName: { $regex: search, $options: 'i' } },
+        { userId: { $regex: search, $options: 'i' } },
+      ];
+    }
+
     // Pagination
     const skip = (page - 1) * limit;
     const total = await Transaction.countDocuments(filter);
 
     const transactions = await Transaction.find(filter)
-      .sort({ timestamp: -1 }) // newest first
+      .sort({ timestamp: -1 })
       .skip(skip)
       .limit(parseInt(limit));
 
@@ -204,8 +214,8 @@ const getTransactionById = async (req, res) => {
 };
 
 // @route   PATCH /api/transactions/:id/status
-// @desc    Update transaction status (approve or block)
-// @access  Private (Analyst or Admin)
+// @desc    Update transaction status
+// @access  Private
 const updateTransactionStatus = async (req, res) => {
   try {
     const { status, notes } = req.body;
@@ -223,13 +233,11 @@ const updateTransactionStatus = async (req, res) => {
 
     const previousStatus = transaction.status;
 
-    // Update transaction
     transaction.status = status;
     transaction.reviewedBy = req.user._id;
     transaction.reviewedAt = new Date();
     await transaction.save();
 
-    // Log this action to audit log
     await AuditLog.create({
       action: status,
       transactionId: transaction.transactionId,
@@ -255,7 +263,7 @@ const updateTransactionStatus = async (req, res) => {
 };
 
 // @route   GET /api/transactions/stats
-// @desc    Get transaction statistics for dashboard
+// @desc    Get transaction statistics
 // @access  Private
 const getTransactionStats = async (req, res) => {
   try {
@@ -266,7 +274,6 @@ const getTransactionStats = async (req, res) => {
     const highRisk = await Transaction.countDocuments({ riskLevel: 'high' });
     const mediumRisk = await Transaction.countDocuments({ riskLevel: 'medium' });
 
-    // Total amount processed
     const amountResult = await Transaction.aggregate([
       { $group: { _id: null, totalAmount: { $sum: '$amount' } } },
     ]);
