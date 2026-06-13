@@ -32,7 +32,7 @@ const getRandomAmount = () => {
   return Math.floor(Math.random() * 150000) + 50000;
 };
 
-let counter = 1000;
+let counter = Math.floor(Math.random() * 9000) + 10000;
 let token = '';
 
 const login = async () => {
