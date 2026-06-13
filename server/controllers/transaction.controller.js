@@ -19,7 +19,6 @@ const createTransaction = async (req, res) => {
       ipAddress,
     } = req.body;
 
-    // Check if transaction already exists
     const existing = await Transaction.findOne({ transactionId });
     if (existing) {
       return res.status(400).json({
@@ -28,11 +27,9 @@ const createTransaction = async (req, res) => {
       });
     }
 
-    // Check if night time (12am to 5am)
     const hour = new Date().getHours();
     const isNightTime = hour >= 0 && hour <= 5;
 
-    // Create transaction first
     const transaction = await Transaction.create({
       transactionId,
       userId,
@@ -45,16 +42,13 @@ const createTransaction = async (req, res) => {
       isNightTime,
     });
 
-    // Run fraud analysis
     const fraudResult = await analyzeFraud(transaction);
 
-    // Update transaction with fraud results
     transaction.riskScore = fraudResult.riskScore;
     transaction.riskLevel = fraudResult.riskLevel;
     transaction.isFraud = fraudResult.isFraud;
     transaction.fraudReasons = fraudResult.fraudReasons;
 
-    // If high risk — get AI explanation and fire alert
     if (fraudResult.riskLevel === 'high') {
       const aiExplanation = await explainFraud(
         transaction,
@@ -62,7 +56,6 @@ const createTransaction = async (req, res) => {
       );
       transaction.aiExplanation = aiExplanation;
 
-      // Fire real time WebSocket alert
       const io = req.app.get('io');
       io.emit('fraudAlert', {
         type: 'FRAUD_ALERT',
@@ -80,7 +73,6 @@ const createTransaction = async (req, res) => {
       console.log(`🚨 FRAUD ALERT fired for ${transaction.transactionId}`);
     }
 
-    // Medium risk alert
     if (fraudResult.riskLevel === 'medium') {
       const io = req.app.get('io');
       io.emit('fraudAlert', {
@@ -99,7 +91,6 @@ const createTransaction = async (req, res) => {
 
     await transaction.save();
 
-    // Save to audit log
     await AuditLog.create({
       action: 'created',
       transactionId: transaction.transactionId,
@@ -138,7 +129,6 @@ const getAllTransactions = async (req, res) => {
       limit = 10,
     } = req.query;
 
-    // Build filter object
     const filter = {};
     if (status) filter.status = status;
     if (riskLevel) filter.riskLevel = riskLevel;
@@ -149,7 +139,6 @@ const getAllTransactions = async (req, res) => {
       if (endDate) filter.timestamp.$lte = new Date(endDate);
     }
 
-    // Search by transactionId or merchantName
     if (search) {
       filter.$or = [
         { transactionId: { $regex: search, $options: 'i' } },
@@ -158,7 +147,6 @@ const getAllTransactions = async (req, res) => {
       ];
     }
 
-    // Pagination
     const skip = (page - 1) * limit;
     const total = await Transaction.countDocuments(filter);
 
@@ -185,7 +173,7 @@ const getAllTransactions = async (req, res) => {
 };
 
 // @route   GET /api/transactions/:id
-// @desc    Get single transaction by ID
+// @desc    Get single transaction
 // @access  Private
 const getTransactionById = async (req, res) => {
   try {
@@ -300,10 +288,58 @@ const getTransactionStats = async (req, res) => {
   }
 };
 
+// @route   GET /api/transactions/heatmap
+// @desc    Get fraud heatmap data by hour and day
+// @access  Private
+const getHeatmapData = async (req, res) => {
+  try {
+    const transactions = await Transaction.find({
+      riskLevel: { $in: ['medium', 'high'] },
+    }).select('timestamp riskScore riskLevel');
+
+    const days = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+    const heatmap = [];
+
+    for (let day = 0; day < 7; day++) {
+      for (let hour = 0; hour < 24; hour++) {
+        const filtered = transactions.filter((txn) => {
+          const d = new Date(txn.timestamp);
+          return d.getDay() === day && d.getHours() === hour;
+        });
+
+        const count = filtered.length;
+        const avgRisk =
+          filtered.reduce((sum, txn) => sum + txn.riskScore, 0) / (count || 1);
+
+        heatmap.push({
+          day: days[day],
+          dayIndex: day,
+          hour,
+          count,
+          avgRisk: Math.round(avgRisk),
+        });
+      }
+    }
+
+    res.status(200).json({
+      success: true,
+      heatmap,
+      total: transactions.length,
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      message: 'Server error',
+      error: error.message,
+    });
+  }
+};
+
 module.exports = {
   createTransaction,
   getAllTransactions,
   getTransactionById,
   updateTransactionStatus,
   getTransactionStats,
+  getHeatmapData,
 };

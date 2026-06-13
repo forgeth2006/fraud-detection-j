@@ -4,6 +4,7 @@ import Dashboard from './pages/Dashboard';
 import Transactions from './pages/Transactions';
 import LiveAlerts from './pages/LiveAlerts';
 import AuditLog from './pages/AuditLog';
+import Heatmap from './pages/Heatmap';
 import ProtectedRoute from './components/ProtectedRoute';
 
 function App() {
@@ -32,6 +33,14 @@ function App() {
           element={
             <ProtectedRoute>
               <LiveAlerts />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/heatmap"
+          element={
+            <ProtectedRoute>
+              <Heatmap />
             </ProtectedRoute>
           }
         />

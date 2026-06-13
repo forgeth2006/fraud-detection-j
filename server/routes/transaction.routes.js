@@ -6,13 +6,14 @@ const {
   getTransactionById,
   updateTransactionStatus,
   getTransactionStats,
+  getHeatmapData,
 } = require('../controllers/transaction.controller');
-const { protect, authorize } = require('../middleware/auth.middleware');
+const { protect } = require('../middleware/auth.middleware');
 
-// All routes are protected
 router.use(protect);
 
 router.get('/stats', getTransactionStats);
+router.get('/heatmap', getHeatmapData);
 router.get('/', getAllTransactions);
 router.post('/', createTransaction);
 router.get('/:id', getTransactionById);

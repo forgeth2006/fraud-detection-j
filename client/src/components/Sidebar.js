@@ -5,6 +5,7 @@ const navItems = [
   { path: '/dashboard', icon: '📊', label: 'Dashboard' },
   { path: '/transactions', icon: '💳', label: 'Transactions' },
   { path: '/alerts', icon: '🚨', label: 'Live Alerts' },
+  { path: '/heatmap', icon: '🔥', label: 'Risk Heatmap' },
   { path: '/audit', icon: '📋', label: 'Audit Log' },
 ];
 
@@ -19,7 +20,6 @@ const Sidebar = () => {
 
   return (
     <div className="fixed left-0 top-0 h-full w-64 bg-gray-900 border-r border-gray-800 flex flex-col">
-      
       {/* Logo */}
       <div className="p-6 border-b border-gray-800">
         <div className="flex items-center gap-3">
