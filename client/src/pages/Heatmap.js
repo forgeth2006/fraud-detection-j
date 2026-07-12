@@ -11,7 +11,7 @@ const Heatmap = () => {
 
   const days = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
   const hours = Array.from({ length: 24 }, (_, i) => i);
-
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(() => {
     const fetchHeatmap = async () => {
       try {

@@ -6,6 +6,7 @@ import LiveAlerts from './pages/LiveAlerts';
 import AuditLog from './pages/AuditLog';
 import Heatmap from './pages/Heatmap';
 import ProtectedRoute from './components/ProtectedRoute';
+import NotFound from './pages/NotFound';
 
 function App() {
   return (
@@ -52,7 +53,8 @@ function App() {
             </ProtectedRoute>
           }
         />
-        <Route path="*" element={<Navigate to="/login" />} />
+        <Route path="/" element={<Navigate to="/login" />} />
+        <Route path="*" element={<NotFound />} />
       </Routes>
     </Router>
   );

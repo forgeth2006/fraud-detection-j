@@ -1,19 +1,16 @@
 import { useState, useEffect } from 'react';
 import Layout from '../components/Layout';
-import io from 'socket.io-client';
-
-const socket = io('http://localhost:5000');
+import { io } from 'socket.io-client';
 
 const AlertCard = ({ alert }) => {
   const isHigh = alert.severity === 'HIGH';
 
   return (
-    <div className={`border rounded-2xl p-5 mb-4 animate-pulse-once ${
+    <div className={`border rounded-2xl p-5 mb-4 ${
       isHigh
         ? 'bg-red-500/10 border-red-500/30'
         : 'bg-yellow-500/10 border-yellow-500/30'
     }`}>
-      {/* Alert Header */}
       <div className="flex items-center justify-between mb-4">
         <div className="flex items-center gap-3">
           <span className="text-2xl">{isHigh ? '🚨' : '⚠️'}</span>
@@ -33,7 +30,6 @@ const AlertCard = ({ alert }) => {
         </div>
       </div>
 
-      {/* Alert Details */}
       <div className="grid grid-cols-2 gap-3 mb-4">
         <div className="bg-gray-800/50 rounded-xl p-3">
           <p className="text-gray-400 text-xs mb-1">Transaction ID</p>
@@ -57,7 +53,6 @@ const AlertCard = ({ alert }) => {
         </div>
       </div>
 
-      {/* Fraud Reasons */}
       {alert.fraudReasons?.length > 0 && (
         <div className="mb-4">
           <p className="text-gray-400 text-xs mb-2">Fraud Indicators:</p>
@@ -72,7 +67,6 @@ const AlertCard = ({ alert }) => {
         </div>
       )}
 
-      {/* AI Explanation */}
       {alert.aiExplanation && (
         <div className="bg-blue-500/10 border border-blue-500/20 rounded-xl p-3">
           <p className="text-blue-400 text-xs font-medium mb-1">🤖 AI Analysis</p>
@@ -89,25 +83,27 @@ const LiveAlerts = () => {
   const [alertCount, setAlertCount] = useState(0);
 
   useEffect(() => {
-    // Connection status
+    const socket = io('http://localhost:5000', {
+      transports: ['websocket', 'polling'],
+    });
+
     socket.on('connect', () => {
       setConnected(true);
+      console.log('Socket connected!');
     });
 
     socket.on('disconnect', () => {
       setConnected(false);
+      console.log('Socket disconnected!');
     });
 
-    // Listen for fraud alerts
     socket.on('fraudAlert', (data) => {
-      setAlerts((prev) => [data, ...prev]); // newest first
+      setAlerts((prev) => [data, ...prev]);
       setAlertCount((prev) => prev + 1);
     });
 
     return () => {
-      socket.off('connect');
-      socket.off('disconnect');
-      socket.off('fraudAlert');
+      socket.disconnect();
     };
   }, []);
 
@@ -118,29 +114,23 @@ const LiveAlerts = () => {
 
   return (
     <Layout>
-      {/* Header */}
       <div className="flex items-center justify-between mb-6">
         <div>
           <h1 className="text-2xl font-bold text-white">Live Alerts</h1>
-          <p className="text-gray-400 mt-1">
-            Real-time fraud detection feed
-          </p>
+          <p className="text-gray-400 mt-1">Real-time fraud detection feed</p>
         </div>
         <div className="flex items-center gap-4">
-          {/* Connection Status */}
           <div className="flex items-center gap-2">
             <div className={`w-2 h-2 rounded-full ${connected ? 'bg-green-400 animate-pulse' : 'bg-red-400'}`} />
             <span className="text-sm text-gray-400">
               {connected ? 'Connected' : 'Disconnected'}
             </span>
           </div>
-          {/* Alert Count */}
           {alertCount > 0 && (
             <div className="bg-red-500 text-white text-xs font-bold px-3 py-1 rounded-full">
               {alertCount} new alerts
             </div>
           )}
-          {/* Clear Button */}
           {alerts.length > 0 && (
             <button
               onClick={clearAlerts}
@@ -152,7 +142,6 @@ const LiveAlerts = () => {
         </div>
       </div>
 
-      {/* How to trigger */}
       <div className="bg-blue-500/10 border border-blue-500/20 rounded-2xl p-4 mb-6">
         <p className="text-blue-400 text-sm font-medium mb-1">
           ⚡ How to trigger a live alert
@@ -164,7 +153,6 @@ const LiveAlerts = () => {
         </p>
       </div>
 
-      {/* Alerts Feed */}
       {alerts.length === 0 ? (
         <div className="flex flex-col items-center justify-center h-64 bg-gray-900 border border-gray-800 rounded-2xl">
           <span className="text-5xl mb-4">🛡️</span>
