@@ -20,6 +20,7 @@ const createTransaction = async (req, res) => {
       ipAddress,
     } = req.body;
 
+    // Check if transaction already exists
     const existing = await Transaction.findOne({ transactionId });
     if (existing) {
       return res.status(400).json({
@@ -28,9 +29,11 @@ const createTransaction = async (req, res) => {
       });
     }
 
+    // Check if night time (12am to 5am)
     const hour = new Date().getHours();
     const isNightTime = hour >= 0 && hour <= 5;
 
+    // Create transaction first
     const transaction = await Transaction.create({
       transactionId,
       userId,
@@ -43,23 +46,33 @@ const createTransaction = async (req, res) => {
       isNightTime,
     });
 
+    // Run fraud analysis (rule engine)
     const fraudResult = await analyzeFraud(transaction);
+
+    // Run ML prediction
     const mlResult = await getMLPrediction(transaction);
 
+    // Calculate hybrid score
     let finalRiskScore = fraudResult.riskScore;
     let hybridRiskScore = null;
 
     if (mlResult.mlAvailable) {
+      // Hybrid: 40% rule engine + 60% ML model
       hybridRiskScore = Math.round(
         fraudResult.riskScore * 0.4 + mlResult.mlRiskScore * 0.6
       );
       finalRiskScore = hybridRiskScore;
-      console.log(`Rule Score: ${fraudResult.riskScore} | ML Score: ${mlResult.mlRiskScore} | Hybrid: ${hybridRiskScore}`);
+      console.log(
+        `Rule Score: ${fraudResult.riskScore} | ML Score: ${mlResult.mlRiskScore} | Hybrid: ${hybridRiskScore}`
+      );
     }
+
+    // Determine final risk level
     let finalRiskLevel = 'low';
     if (finalRiskScore > 70) finalRiskLevel = 'high';
     else if (finalRiskScore > 30) finalRiskLevel = 'medium';
 
+    // Update transaction with combined results
     transaction.riskScore = finalRiskScore;
     transaction.riskLevel = finalRiskLevel;
     transaction.isFraud = finalRiskScore > 70;
@@ -68,14 +81,17 @@ const createTransaction = async (req, res) => {
     transaction.mlFraudProbability = mlResult.mlAvailable ? mlResult.fraudProbability : null;
     transaction.hybridRiskScore = hybridRiskScore;
     transaction.mlAvailable = mlResult.mlAvailable;
+    transaction.shapExplanation = mlResult.mlAvailable ? mlResult.shapExplanation : null;
 
-    if (fraudResult.riskLevel === 'high') {
+    // If high risk — get AI explanation and fire alert
+    if (finalRiskLevel === 'high') {
       const aiExplanation = await explainFraud(
         transaction,
         fraudResult.fraudReasons
       );
       transaction.aiExplanation = aiExplanation;
 
+      // Fire real time WebSocket alert
       const io = req.app.get('io');
       io.emit('fraudAlert', {
         type: 'FRAUD_ALERT',
@@ -84,7 +100,7 @@ const createTransaction = async (req, res) => {
         amount: transaction.amount,
         merchantName: transaction.merchantName,
         location: transaction.location,
-        riskScore: fraudResult.riskScore,
+        riskScore: finalRiskScore,
         fraudReasons: fraudResult.fraudReasons,
         aiExplanation: transaction.aiExplanation,
         timestamp: new Date(),
@@ -93,7 +109,8 @@ const createTransaction = async (req, res) => {
       console.log(`🚨 FRAUD ALERT fired for ${transaction.transactionId}`);
     }
 
-    if (fraudResult.riskLevel === 'medium') {
+    // Medium risk alert
+    if (finalRiskLevel === 'medium') {
       const io = req.app.get('io');
       io.emit('fraudAlert', {
         type: 'REVIEW_ALERT',
@@ -101,7 +118,7 @@ const createTransaction = async (req, res) => {
         transactionId: transaction.transactionId,
         amount: transaction.amount,
         merchantName: transaction.merchantName,
-        riskScore: fraudResult.riskScore,
+        riskScore: finalRiskScore,
         fraudReasons: fraudResult.fraudReasons,
         timestamp: new Date(),
       });
@@ -111,6 +128,7 @@ const createTransaction = async (req, res) => {
 
     await transaction.save();
 
+    // Save to audit log
     await AuditLog.create({
       action: 'created',
       transactionId: transaction.transactionId,
@@ -309,7 +327,7 @@ const getTransactionStats = async (req, res) => {
 };
 
 // @route   GET /api/transactions/heatmap
-// @desc    Get fraud heatmap data by hour and day
+// @desc    Get fraud heatmap data
 // @access  Private
 const getHeatmapData = async (req, res) => {
   try {
@@ -329,7 +347,8 @@ const getHeatmapData = async (req, res) => {
 
         const count = filtered.length;
         const avgRisk =
-          filtered.reduce((sum, txn) => sum + txn.riskScore, 0) / (count || 1);
+          filtered.reduce((sum, txn) => sum + txn.riskScore, 0) /
+          (count || 1);
 
         heatmap.push({
           day: days[day],

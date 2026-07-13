@@ -62,34 +62,19 @@ const transactionSchema = new mongoose.Schema(
       default: false,
     },
     fraudReasons: {
-      type: [String], // list of reasons why flagged
+      type: [String],
       default: [],
     },
     aiExplanation: {
-      type: String, // Claude AI's explanation
-      default: '',
-    },
-    // Analyst Action Fields
-    status: {
       type: String,
-      enum: ['pending', 'approved', 'blocked', 'reviewing'],
-      default: 'pending',
-    },
-    reviewedBy: {
-      type: mongoose.Schema.Types.ObjectId,
-      ref: 'User',
-      default: null,
-    },
-    reviewedAt: {
-      type: Date,
-      default: null,
+      default: '',
     },
     // ML Model Fields
     mlRiskScore: {
-    type: Number,
-    min: 0,
-    max: 100,
-    default: null,
+      type: Number,
+      min: 0,
+      max: 100,
+      default: null,
     },
     mlFraudProbability: {
       type: Number,
@@ -106,6 +91,25 @@ const transactionSchema = new mongoose.Schema(
     mlAvailable: {
       type: Boolean,
       default: false,
+    },
+    shapExplanation: {
+      type: Object,
+      default: null,
+    },
+    // Analyst Action Fields
+    status: {
+      type: String,
+      enum: ['pending', 'approved', 'blocked', 'reviewing'],
+      default: 'pending',
+    },
+    reviewedBy: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'User',
+      default: null,
+    },
+    reviewedAt: {
+      type: Date,
+      default: null,
     },
     // Device & Session Info
     deviceType: {
