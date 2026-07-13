@@ -84,6 +84,29 @@ const transactionSchema = new mongoose.Schema(
       type: Date,
       default: null,
     },
+    // ML Model Fields
+    mlRiskScore: {
+    type: Number,
+    min: 0,
+    max: 100,
+    default: null,
+    },
+    mlFraudProbability: {
+      type: Number,
+      min: 0,
+      max: 1,
+      default: null,
+    },
+    hybridRiskScore: {
+      type: Number,
+      min: 0,
+      max: 100,
+      default: null,
+    },
+    mlAvailable: {
+      type: Boolean,
+      default: false,
+    },
     // Device & Session Info
     deviceType: {
       type: String,

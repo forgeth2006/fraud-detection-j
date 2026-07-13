@@ -2,6 +2,7 @@ const Transaction = require('../models/Transaction');
 const AuditLog = require('../models/AuditLog');
 const { analyzeFraud } = require('../services/fraudEngine');
 const { explainFraud } = require('../services/claudeAI');
+const { getMLPrediction } = require('../services/mlService');
 
 // @route   POST /api/transactions
 // @desc    Create a new transaction
@@ -43,11 +44,30 @@ const createTransaction = async (req, res) => {
     });
 
     const fraudResult = await analyzeFraud(transaction);
+    const mlResult = await getMLPrediction(transaction);
 
-    transaction.riskScore = fraudResult.riskScore;
-    transaction.riskLevel = fraudResult.riskLevel;
-    transaction.isFraud = fraudResult.isFraud;
+    let finalRiskScore = fraudResult.riskScore;
+    let hybridRiskScore = null;
+
+    if (mlResult.mlAvailable) {
+      hybridRiskScore = Math.round(
+        fraudResult.riskScore * 0.4 + mlResult.mlRiskScore * 0.6
+      );
+      finalRiskScore = hybridRiskScore;
+      console.log(`Rule Score: ${fraudResult.riskScore} | ML Score: ${mlResult.mlRiskScore} | Hybrid: ${hybridRiskScore}`);
+    }
+    let finalRiskLevel = 'low';
+    if (finalRiskScore > 70) finalRiskLevel = 'high';
+    else if (finalRiskScore > 30) finalRiskLevel = 'medium';
+
+    transaction.riskScore = finalRiskScore;
+    transaction.riskLevel = finalRiskLevel;
+    transaction.isFraud = finalRiskScore > 70;
     transaction.fraudReasons = fraudResult.fraudReasons;
+    transaction.mlRiskScore = mlResult.mlAvailable ? mlResult.mlRiskScore : null;
+    transaction.mlFraudProbability = mlResult.mlAvailable ? mlResult.fraudProbability : null;
+    transaction.hybridRiskScore = hybridRiskScore;
+    transaction.mlAvailable = mlResult.mlAvailable;
 
     if (fraudResult.riskLevel === 'high') {
       const aiExplanation = await explainFraud(
