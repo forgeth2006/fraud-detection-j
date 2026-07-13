@@ -257,6 +257,9 @@ const Transactions = () => {
                         <span className="text-gray-500 text-xs">
                           {txn.riskScore}/100
                         </span>
+                        {txn.mlAvailable && (
+                          <span className="text-purple-400 text-xs">🤖</span>
+                        )}
                       </div>
                     </td>
                     <td className="px-6 py-4">
@@ -379,6 +382,129 @@ const Transactions = () => {
                 </p>
               </div>
             </div>
+
+            {/* ML Insights Section */}
+            {selected.mlAvailable && (
+              <div className="bg-purple-500/10 border border-purple-500/30 rounded-xl p-4 mb-4">
+                <p className="text-purple-400 font-medium text-sm mb-3">
+                  🤖 ML Model Insights
+                </p>
+
+                {/* Score Comparison */}
+                <div className="grid grid-cols-3 gap-3 mb-4">
+                  <div className="bg-gray-800 rounded-lg p-3 text-center">
+                    <p className="text-gray-400 text-xs mb-1">Rule Score</p>
+                    <p className="text-yellow-400 font-bold text-lg">
+                      {selected.hybridRiskScore
+                        ? Math.round(
+                            (selected.riskScore - selected.mlRiskScore * 0.6) /
+                              0.4
+                          )
+                        : selected.riskScore}
+                    </p>
+                  </div>
+                  <div className="bg-gray-800 rounded-lg p-3 text-center">
+                    <p className="text-gray-400 text-xs mb-1">ML Score</p>
+                    <p className="text-blue-400 font-bold text-lg">
+                      {selected.mlRiskScore?.toFixed(1)}
+                    </p>
+                  </div>
+                  <div className="bg-gray-800 rounded-lg p-3 text-center">
+                    <p className="text-gray-400 text-xs mb-1">Hybrid Score</p>
+                    <p
+                      className={`font-bold text-lg ${
+                        selected.hybridRiskScore > 70
+                          ? 'text-red-400'
+                          : selected.hybridRiskScore > 30
+                          ? 'text-yellow-400'
+                          : 'text-green-400'
+                      }`}
+                    >
+                      {selected.hybridRiskScore}
+                    </p>
+                  </div>
+                </div>
+
+                {/* Hybrid formula explanation */}
+                <p className="text-gray-500 text-xs mb-3 text-center">
+                  Hybrid = Rule Engine (40%) + ML Model (60%)
+                </p>
+
+                {/* SHAP Top Features */}
+                {selected.shapExplanation?.top_features?.length > 0 && (
+                  <div>
+                    <p className="text-gray-400 text-xs mb-2">
+                      Top fraud risk factors (SHAP values):
+                    </p>
+                    <div className="space-y-2">
+                      {selected.shapExplanation.top_features
+                        .slice(0, 5)
+                        .map((feat, i) => (
+                          <div key={i} className="flex items-center gap-2">
+                            <span className="text-gray-400 text-xs w-16 shrink-0">
+                              {feat.feature}
+                            </span>
+                            <div className="flex-1 bg-gray-700 rounded-full h-2">
+                              <div
+                                className={`h-2 rounded-full ${
+                                  feat.impact === 'increases_fraud_risk'
+                                    ? 'bg-red-400'
+                                    : 'bg-green-400'
+                                }`}
+                                style={{
+                                  width: `${Math.min(
+                                    feat.importance * 200,
+                                    100
+                                  )}%`,
+                                }}
+                              />
+                            </div>
+                            <span
+                              className={`text-xs w-16 text-right ${
+                                feat.impact === 'increases_fraud_risk'
+                                  ? 'text-red-400'
+                                  : 'text-green-400'
+                              }`}
+                            >
+                              {feat.impact === 'increases_fraud_risk'
+                                ? '+'
+                                : '-'}
+                              {feat.importance.toFixed(3)}
+                            </span>
+                          </div>
+                        ))}
+                    </div>
+
+                    {/* Human explanation */}
+                    {selected.shapExplanation?.human_explanation && (
+                      <p className="text-gray-400 text-xs mt-3 leading-relaxed border-t border-gray-700 pt-3">
+                        {selected.shapExplanation.human_explanation}
+                      </p>
+                    )}
+                  </div>
+                )}
+
+                {/* ML Fraud Probability */}
+                <div className="mt-3 pt-3 border-t border-gray-700">
+                  <div className="flex items-center justify-between">
+                    <span className="text-gray-400 text-xs">
+                      ML Fraud Probability
+                    </span>
+                    <span className="text-purple-400 text-xs font-medium">
+                      {(selected.mlFraudProbability * 100).toFixed(2)}%
+                    </span>
+                  </div>
+                  <div className="mt-1 bg-gray-700 rounded-full h-2">
+                    <div
+                      className="h-2 rounded-full bg-purple-400"
+                      style={{
+                        width: `${selected.mlFraudProbability * 100}%`,
+                      }}
+                    />
+                  </div>
+                </div>
+              </div>
+            )}
 
             {/* Fraud Reasons */}
             {selected.fraudReasons?.length > 0 && (
