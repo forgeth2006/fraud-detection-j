@@ -83,3 +83,22 @@ const PORT = process.env.PORT || 5000;
 server.listen(PORT, () => {
   console.log(`Server running on port ${PORT}`);
 });
+// One-time seed route — protected by secret key
+// Temporary seed route
+app.get('/seed-now-secret123', async (req, res) => {
+  try {
+    const User = require('./models/User');
+    await User.deleteMany({});
+    const users = [
+      { name: 'Admin User', email: 'admin@fraud.com', password: 'Admin123', role: 'admin' },
+      { name: 'John Analyst', email: 'analyst@fraud.com', password: 'Fraud123', role: 'analyst' },
+    ];
+    for (const userData of users) {
+      const user = new User(userData);
+      await user.save();
+    }
+    res.json({ success: true, message: 'Users seeded!' });
+  } catch (error) {
+    res.json({ success: false, error: error.message });
+  }
+});
