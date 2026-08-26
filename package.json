@@ -1,0 +1,11 @@
+{
+  "name": "fraud-detection-j",
+  "version": "1.0.0",
+  "scripts": {
+    "start": "node server/index.js",
+    "build": "echo 'No build needed'"
+  },
+  "engines": {
+    "node": "20.x"
+  }
+}
